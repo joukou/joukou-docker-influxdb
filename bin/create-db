@@ -1,0 +1,30 @@
+
+echo "$(date '+[%Y-%m-%d %H:%M:%S %Z]') [INFO] Waiting for InfluxDB to start..."
+
+# wait for the service to become available on $PORT
+sleep 1 && while [[ -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1 ~ \"$PROTO.?\"") ]] ; do sleep 1; done
+
+echo "$(date '+[%Y-%m-%d %H:%M:%S %Z]') [INFO] InfluxDB is running.."
+
+if [[ -n "${INFLUXDB_CREATE_DB}" ]]
+then
+  arr=$(echo ${INFLUXDB_CREATE_DB} | tr ";" "\n")
+  for x in $arr; do
+    if [[ -f "/opt/influxdb/shared/data/.${x}_db_created" ]]
+    then
+      echo "$(date '+[%Y-%m-%d %H:%M:%S %Z]') [INFO] ${x} database already created, skipping..."
+    else
+      echo "$(date '+[%Y-%m-%d %H:%M:%S %Z]') [INFO] Creating database: ${x}"
+      curl -s -k -X POST -d "{\"name\": \"${x}\"}" "${INFLUXDB_ADDR}/db?u=root&p=${INFLUXDB_ROOT_PWD}"
+      touch "/opt/influxdb/shared/data/.${x}_db_created"
+    fi
+  done
+fi
+
+# while the $PORT is listening, everything is OK
+while [[ ! -z $(netstat -lnt | awk "\$6 == \"LISTEN\" && \$4 ~ \".$PORT\" && \$1~ \"$PROTO.?\"") ]] ; do
+  sleep $(($ETCD_TTL/2)) # sleep for half the etcd TTL
+done
+
+# if the loop quits, something went wrong
+exit 1

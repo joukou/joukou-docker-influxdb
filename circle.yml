@@ -1,0 +1,27 @@
+machine:
+  environment:
+    PATH: $HOME/$CIRCLE_PROJECT_REPONAME/.circle:$PATH
+    DOCKER_IMAGE_NAME: quay.io/joukou/influxdb
+  node:
+    version: 0.10.31
+  services:
+    - docker
+  timezone: Pacific/Auckland
+checkout:
+  post:
+    - docker-login
+    - docker-build
+test:
+  override:
+    - "true"
+deployment:
+  staging:
+    branch: develop
+    commands:
+      - docker-push
+      - trigger-builds
+  production:
+    branch: master
+    commands:
+      - docker-push
+      - trigger-builds
